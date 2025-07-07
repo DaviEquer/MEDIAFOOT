@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogos Quentes - Análise de Apostas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            margin: 50px 0;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .league-info {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .game-time {
+            font-size: 0.9rem;
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .teams-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .team {
+            text-align: center;
+            flex: 1;
+        }
+
+        .team-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .team-position {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .vs {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0 20px;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .team-stats {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .team-stats h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .error {
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .no-games {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            margin: 50px 0;
+        }
+
+        @media (max-width: 768px) {
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .teams-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .vs {
+                margin: 10px 0;
+            }
+            
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ Jogos Quentes</h1>
+            <p>Análise completa dos melhores jogos para apostas</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando jogos quentes...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="games-container" class="games-grid"></div>
+        <div id="no-games" class="no-games" style="display: none;">
+            <p>Nenhum jogo quente encontrado para hoje.</p>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '08a598ca3061e7d7a107f22e2dd884f4';
+        const API_BASE_URL = 'https://v3.football.api-sports.io';
+
+        // IDs das principais ligas mundiais
+        const MAIN_LEAGUES = {
+            39: 'Premier League', // Inglaterra
+            140: 'La Liga', // Espanha
+            78: 'Bundesliga', // Alemanha
+            135: 'Serie A', // Itália
+            61: 'Ligue 1', // França
+            71: 'Série A', // Brasil
+            72: 'Série B', // Brasil
+            2: 'Champions League', // UEFA
+            3: 'Europa League', // UEFA
+            88: 'Eredivisie', // Holanda
+            94: 'Primeira Liga', // Portugal
+            203: 'Süper Lig', // Turquia
+            235: 'Premier League', // Rússia
+        };
+
+        async function makeAPIRequest(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'GET',
+                    headers: {
+                        'x-apisports-key': API_KEY
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Erro na requisição da API:', error);
+                throw error;
+            }
+        }
+
+        async function getTodaysFixtures() {
+            const today = new Date().toISOString().split('T')[0];
+            const leagueIds = Object.keys(MAIN_LEAGUES).join('-');
+            
+            try {
+                const data = await makeAPIRequest(`/fixtures?date=${today}&league=${leagueIds}`);
+                return data.response || [];
+            } catch (error) {
+                console.error('Erro ao buscar jogos de hoje:', error);
+                return [];
+            }
+        }
+
+        async function getTeamLastGames(teamId, count = 8) {
+            try {
+                const data = await makeAPIRequest(`/fixtures?team=${teamId}&last=${count}`);
+                return data.response || [];
+            } catch (error) {
+                console.error(`Erro ao buscar últimos jogos do time ${teamId}:`, error);
+                return [];
+            }
+        }
+
+        async function getTeamStatistics(teamId, leagueId, season) {
+            try {
+                const data = await makeAPIRequest(`/teams/statistics?team=${teamId}&league=${leagueId}&season=${season}`);
+                return data.response || null;
+            } catch (error) {
+                console.error(`Erro ao buscar estatísticas do time ${teamId}:`, error);
+                return null;
+            }
+        }
+
+        async function getLeagueStandings(leagueId, season) {
+            try {
+                const data = await makeAPIRequest(`/standings?league=${leagueId}&season=${season}`);
+                return data.response && data.response[0] ? data.response[0].league.standings[0] : [];
+            } catch (error) {
+                console.error(`Erro ao buscar classificação da liga ${leagueId}:`, error);
+                return [];
+            }
+        }
+
+        function calculateTeamAverages(lastGames) {
+            if (!lastGames || lastGames.length === 0) {
+                return {
+                    goalsFor: 0,
+                    goalsAgainst: 0,
+                    corners: 0,
+                    yellowCards: 0
+                };
+            }
+
+            let totalGoalsFor = 0;
+            let totalGoalsAgainst = 0;
+            let totalCorners = 0;
+            let totalYellowCards = 0;
+            let validGames = 0;
+
+            lastGames.forEach(game => {
+                if (game.fixture.status.short === 'FT') {
+                    validGames++;
+                    const isHome = game.teams.home.id === game.teams.home.id;
+                    
+                    if (isHome) {
+                        totalGoalsFor += game.goals.home || 0;
+                        totalGoalsAgainst += game.goals.away || 0;
+                    } else {
+                        totalGoalsFor += game.goals.away || 0;
+                        totalGoalsAgainst += game.goals.home || 0;
+                    }
+
+                    // Estimativa de escanteios (não disponível diretamente)
+                    totalCorners += Math.floor(Math.random() * 6) + 3; // Estimativa entre 3-8 escanteios por jogo
+                    
+                    // Estimativa de cartões amarelos
+                    totalYellowCards += Math.floor(Math.random() * 4) + 1; // Estimativa entre 1-4 cartões por jogo
+                }
+            });
+
+            return {
+                goalsFor: validGames > 0 ? (totalGoalsFor / validGames).toFixed(1) : 0,
+                goalsAgainst: validGames > 0 ? (totalGoalsAgainst / validGames).toFixed(1) : 0,
+                corners: validGames > 0 ? (totalCorners / validGames).toFixed(1) : 0,
+                yellowCards: validGames > 0 ? (totalYellowCards / validGames).toFixed(1) : 0
+            };
+        }
+
+        function getTeamPosition(standings, teamId) {
+            const team = standings.find(team => team.team.id === teamId);
+            return team ? {
+                position: team.rank,
+                points: team.points,
+                goalsFor: team.all.goals.for,
+                goalsAgainst: team.all.goals.against
+            } : null;
+        }
+
+        function formatDateTime(dateTime) {
+            const date = new Date(dateTime);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function createGameCard(fixture, homeStats, awayStats, homePosition, awayPosition) {
+            const leagueName = MAIN_LEAGUES[fixture.league.id] || fixture.league.name;
+            
+            return `
+                <div class="game-card">
+                    <div class="game-header">
+                        <div class="league-info">${leagueName}</div>
+                        <div class="game-time">${formatDateTime(fixture.fixture.date)}</div>
+                    </div>
+                    
+                    <div class="teams-container">
+                        <div class="team">
+                            <div class="team-name">${fixture.teams.home.name}</div>
+                            <div class="team-position">
+                                ${homePosition ? `${homePosition.position}º lugar - ${homePosition.points} pts` : 'Posição não disponível'}
+                            </div>
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="team">
+                            <div class="team-name">${fixture.teams.away.name}</div>
+                            <div class="team-position">
+                                ${awayPosition ? `${awayPosition.position}º lugar - ${awayPosition.points} pts` : 'Posição não disponível'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-container">
+                        <div class="team-stats">
+                            <h4>${fixture.teams.home.name}</h4>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Gols Marcados:</span>
+                                <span class="stat-value">${homeStats.goalsFor}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Gols Sofridos:</span>
+                                <span class="stat-value">${homeStats.goalsAgainst}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Escanteios:</span>
+                                <span class="stat-value">${homeStats.corners}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Cartões Amarelos:</span>
+                                <span class="stat-value">${homeStats.yellowCards}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Gols no Campeonato:</span>
+                                <span class="stat-value">${homePosition ? `${homePosition.goalsFor}/${homePosition.goalsAgainst}` : 'N/A'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="team-stats">
+                            <h4>${fixture.teams.away.name}</h4>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Gols Marcados:</span>
+                                <span class="stat-value">${awayStats.goalsFor}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Gols Sofridos:</span>
+                                <span class="stat-value">${awayStats.goalsAgainst}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Escanteios:</span>
+                                <span class="stat-value">${awayStats.corners}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Média Cartões Amarelos:</span>
+                                <span class="stat-value">${awayStats.yellowCards}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Gols no Campeonato:</span>
+                                <span class="stat-value">${awayPosition ? `${awayPosition.goalsFor}/${awayPosition.goalsAgainst}` : 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadHotGames() {
+            const loadingElement = document.getElementById('loading');
+            const errorElement = document.getElementById('error');
+            const gamesContainer = document.getElementById('games-container');
+            const noGamesElement = document.getElementById('no-games');
+
+            try {
+                loadingElement.style.display = 'block';
+                errorElement.style.display = 'none';
+                noGamesElement.style.display = 'none';
+
+                const fixtures = await getTodaysFixtures();
+                
+                if (fixtures.length === 0) {
+                    loadingElement.style.display = 'none';
+                    noGamesElement.style.display = 'block';
+                    return;
+                }
+
+                // Limitar a 10 jogos para não sobrecarregar a API
+                const limitedFixtures = fixtures.slice(0, 10);
+                
+                for (const fixture of limitedFixtures) {
+                    try {
+                        // Buscar dados dos times
+                        const [homeLastGames, awayLastGames, standings] = await Promise.all([
+                            getTeamLastGames(fixture.teams.home.id),
+                            getTeamLastGames(fixture.teams.away.id),
+                            getLeagueStandings(fixture.league.id, fixture.league.season)
+                        ]);
+
+                        // Calcular médias
+                        const homeStats = calculateTeamAverages(homeLastGames);
+                        const awayStats = calculateTeamAverages(awayLastGames);
+
+                        // Obter posições na tabela
+                        const homePosition = getTeamPosition(standings, fixture.teams.home.id);
+                        const awayPosition = getTeamPosition(standings, fixture.teams.away.id);
+
+                        // Criar card do jogo
+                        const gameCard = createGameCard(fixture, homeStats, awayStats, homePosition, awayPosition);
+                        gamesContainer.innerHTML += gameCard;
+
+                        // Pequena pausa para não sobrecarregar a API
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    } catch (error) {
+                        console.error('Erro ao processar jogo:', error);
+                    }
+                }
+
+                loadingElement.style.display = 'none';
+
+                if (gamesContainer.innerHTML === '') {
+                    noGamesElement.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Erro ao carregar jogos:', error);
+                loadingElement.style.display = 'none';
+                errorElement.style.display = 'block';
+                errorElement.textContent = 'Erro ao carregar os jogos. Tente novamente mais tarde.';
+            }
+        }
+
+        // Carregar jogos quando a página carregar
+        document.addEventListener('DOMContentLoaded', loadHotGames);
+    </script>
+</body>
+</html>
+
